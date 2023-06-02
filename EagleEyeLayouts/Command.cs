@@ -21,7 +21,6 @@ namespace EagleEyeLayouts
 
 			//Open addin window from where the events will be triggered
 			AddinForm addinForm = new AddinForm(commandData, formEvent, revitEvent);
-			//addinForm.Show();
 
 			return Result.Succeeded;
 		}

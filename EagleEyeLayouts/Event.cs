@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using View = Autodesk.Revit.DB.View;
 
 namespace EagleEyeLayouts
 {
@@ -34,8 +36,35 @@ namespace EagleEyeLayouts
 			{
 				case EventRaised.Event1:
 					
-					//Collect incubators
 					ViewPlan viewPlan = GetViewPlanByName(doc, viewPlanName);
+					if (viewPlan == null)
+					{
+						TaskDialog.Show("Eagle eye layouts", "The default view plan <5.5 - Eagle Eye> didn't found. Please select one view from the upcoming list", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
+
+						List<ViewPlan> allViewPlans = GetAllViewPlans(doc);
+						List<string> allViewPlanNames = new List<string>();
+						foreach (ViewPlan view in allViewPlans)
+						{
+							allViewPlanNames.Add(view.Name);
+						}
+
+						SelectViewPlan selectViewPlanForm = new SelectViewPlan(allViewPlanNames);
+						DialogResult result = selectViewPlanForm.ShowDialog();
+
+						if (result == DialogResult.OK)
+						{
+							viewPlanName = SelectViewPlan.SelectedViewPlanName;
+							viewPlan = GetViewPlanByName(doc, viewPlanName);
+						}
+						else
+						{
+							TaskDialog.Show("Eagle eye layouts", "Process canceled.", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
+							return;
+						}
+						   
+					}
+					
+					//Collect incubators
 					collectedFamilies = CollectFamilyInstances(doc, "XSTR");
 
 					//Check their visibility
@@ -64,7 +93,7 @@ namespace EagleEyeLayouts
 					ExportViewPlanToImage(doc, viewPlan, filePath2);
 					UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
 
-					TaskDialog.Show("Eagle eye layouts", "Export ready\nThe export folder location will pop up");
+					TaskDialog.Show("Eagle eye layouts", "Export ready.\nThe export folder location will pop up.", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 					Process.Start(centralFilePath);
 
 					AddinForm.EventFlag = EventRaised.NoEvent;
@@ -95,6 +124,22 @@ namespace EagleEyeLayouts
 
 			// If no ViewPlan with the given name was found, return null
 			return null;
+		}
+
+		public List<ViewPlan> GetAllViewPlans(Document doc)
+		{
+			// Retrieve all ViewPlans in the document
+			List<ViewPlan> allViewPlans = new List<ViewPlan>();
+			FilteredElementCollector collector = new FilteredElementCollector(doc);
+			ICollection<Element> viewPlans = collector.OfClass(typeof(ViewPlan)).ToElements();
+
+			// Find the ViewPlan with the given name
+			foreach (Element elem in viewPlans)
+			{
+				allViewPlans.Add((ViewPlan)elem);
+			}
+
+			return allViewPlans;
 		}
 
 
