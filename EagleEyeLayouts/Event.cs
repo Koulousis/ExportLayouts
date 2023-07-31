@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using View = Autodesk.Revit.DB.View;
 
@@ -36,12 +36,13 @@ namespace EagleEyeLayouts
 			{
 				case EventRaised.Event1:
 					
-					ViewPlan viewPlan = GetViewPlanByName(doc, viewPlanName);
+					//Get view plan
+					ViewPlan viewPlan = ViewExtensions.GetViewPlanByName(doc, viewPlanName);
 					if (viewPlan == null)
 					{
 						TaskDialog.Show("Eagle eye layouts", "The default view plan <5.5 - Eagle Eye> didn't found. Please select one view from the upcoming list", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 
-						List<ViewPlan> allViewPlans = GetAllViewPlans(doc);
+						List<ViewPlan> allViewPlans = ViewExtensions.GetAllViewPlans(doc);
 						List<string> allViewPlanNames = new List<string>();
 						foreach (ViewPlan view in allViewPlans)
 						{
@@ -54,7 +55,7 @@ namespace EagleEyeLayouts
 						if (result == DialogResult.OK)
 						{
 							viewPlanName = SelectViewPlan.SelectedViewPlanName;
-							viewPlan = GetViewPlanByName(doc, viewPlanName);
+							viewPlan = ViewExtensions.GetViewPlanByName(doc, viewPlanName);
 						}
 						else
 						{
@@ -64,11 +65,14 @@ namespace EagleEyeLayouts
 						   
 					}
 					
+					//Tag all rooms
+					TagAllRoomsInSpecificView(doc, viewPlan.Name);
+
 					//Collect incubators
 					collectedFamilies = CollectFamilyInstances(doc, "XSTR");
 
 					//Check their visibility
-					if (IsAnyElementHiddenInView(viewPlan, collectedFamilies))
+					if (AppearExtensions.IsAnyElementHiddenInView(viewPlan, collectedFamilies))
 					{
 						TaskDialog dialog = new TaskDialog("Eagle eye layouts")
 						{
@@ -82,16 +86,17 @@ namespace EagleEyeLayouts
 						TaskDialogResult result = dialog.Show();
 						if (result == TaskDialogResult.Yes)
 						{
-							UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
+							AppearExtensions.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
 						}
 					}
 						
 					//Export with incubators
-					ExportViewPlanToImage(doc, viewPlan, filePath1);
+					ViewExtensions.ExportViewPlanToImage(doc, viewPlan, filePath1);
+
 					//Export without incubators
-					HideElementsInPlan(doc, viewPlan, collectedFamilies);
-					ExportViewPlanToImage(doc, viewPlan, filePath2);
-					UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
+					AppearExtensions.HideElementsInPlan(doc, viewPlan, collectedFamilies);
+					ViewExtensions.ExportViewPlanToImage(doc, viewPlan, filePath2);
+					AppearExtensions.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
 
 					TaskDialog.Show("Eagle eye layouts", "Export ready.\nThe export folder location will pop up.", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 					Process.Start(centralFilePath);
@@ -104,63 +109,6 @@ namespace EagleEyeLayouts
 					AddinForm.EventFlag = EventRaised.NoEvent;
 					break;
 			}
-		}
-
-		public ViewPlan GetViewPlanByName(Document doc, string viewPlanName)
-		{
-			// Retrieve all ViewPlans in the document
-			FilteredElementCollector collector = new FilteredElementCollector(doc);
-			ICollection<Element> viewPlans = collector.OfClass(typeof(ViewPlan)).ToElements();
-
-			// Find the ViewPlan with the given name
-			foreach (Element elem in viewPlans)
-			{
-				ViewPlan viewPlan = (ViewPlan)elem;
-				if (viewPlan != null && viewPlan.Name == viewPlanName)
-				{
-					return viewPlan;
-				}
-			}
-
-			// If no ViewPlan with the given name was found, return null
-			return null;
-		}
-
-		public List<ViewPlan> GetAllViewPlans(Document doc)
-		{
-			// Retrieve all ViewPlans in the document
-			List<ViewPlan> allViewPlans = new List<ViewPlan>();
-			FilteredElementCollector collector = new FilteredElementCollector(doc);
-			ICollection<Element> viewPlans = collector.OfClass(typeof(ViewPlan)).ToElements();
-
-			// Find the ViewPlan with the given name
-			foreach (Element elem in viewPlans)
-			{
-				allViewPlans.Add((ViewPlan)elem);
-			}
-
-			return allViewPlans;
-		}
-
-
-		public void ExportViewPlanToImage(Document doc, ViewPlan viewPlan, string filePath)
-		{
-			// Set up the ImageExportOptions
-			ImageExportOptions imageExportOptions = new ImageExportOptions
-			{
-				ExportRange = ExportRange.SetOfViews,
-				FilePath = filePath,
-				FitDirection = FitDirectionType.Horizontal,
-				HLRandWFViewsFileType = ImageFileType.PNG,
-				ShadowViewsFileType = ImageFileType.PNG,
-				PixelSize = 10000
-			};
-
-			// Add the ViewPlan to the set of views to export
-			imageExportOptions.SetViewsAndSheets(new List<ElementId>() { viewPlan.Id });
-
-			// Export the image
-			doc.ExportImage(imageExportOptions);
 		}
 
 		public List<ElementId> CollectFamilyInstances(Document doc, string familyNameStart)
@@ -186,28 +134,6 @@ namespace EagleEyeLayouts
 			return ids;
 		}
 
-		public void HideElementsInPlan(Document doc, ViewPlan viewPlan, List<ElementId> idsToHide)
-		{
-			// Hide the elements in the view
-			using (Transaction t = new Transaction(doc, "Hide Elements"))
-			{
-				t.Start();
-				viewPlan.HideElements(idsToHide);
-				t.Commit();
-			}
-		}
-
-		public void UnhideElementsInPlan(Document doc, ViewPlan viewPlan, List<ElementId> idsToUnhide)
-		{
-			// Unhide the elements in the view
-			using (Transaction t = new Transaction(doc, "Unhide Elements"))
-			{
-				t.Start();
-				viewPlan.UnhideElements(idsToUnhide);
-				t.Commit();
-			}
-		}
-
 		public string GetEagleEyeDirectory(Document doc)
 		{
 			// Get the ModelPath object for the central model
@@ -228,66 +154,58 @@ namespace EagleEyeLayouts
 			return parentDirectoryPath + @"\3 - Eagle Eye layouts\";
 		}
 
-		public bool IsAnyElementHiddenInView(View view, List<ElementId> elementIds)
+		public void TagAllRoomsInSpecificView(Document doc, string viewName)
 		{
-			Document doc = view.Document;
+			// Find the desired view by name
+			View desiredView = new FilteredElementCollector(doc)
+				.OfClass(typeof(View))
+				.Cast<View>()
+				.FirstOrDefault(v => v.Name.Equals(viewName));
 
-			foreach (ElementId id in elementIds)
+			// If the desired view doesn't exist, return
+			if (desiredView == null)
 			{
-				Element el = doc.GetElement(id);
-
-				// If the element is not visible in the view, return true
-				if (!view.IsElementVisibleInView(el))
-				{
-					return true;
-				}
+				TaskDialog.Show("Error", $"Could not find view with name {viewName}.");
+				return;
 			}
 
-			// If none of the elements are hidden, return false
-			return false;
+			// Get a collection of all rooms in the project
+			FilteredElementCollector collector = new FilteredElementCollector(doc);
+			ICollection<Element> collection = collector.OfClass(typeof(SpatialElement))
+				.OfCategory(BuiltInCategory.OST_Rooms).ToElements();
+
+			// Begin a new transaction
+			using (Transaction trans = new Transaction(doc, "Tag All Rooms"))
+			{
+				trans.Start();
+
+				// Iterate through each room
+				foreach (Element e in collection)
+				{
+					SpatialElement room = e as SpatialElement;
+
+					if (room != null)
+					{
+						// Get the room's location point
+						LocationPoint roomLocation = room.Location as LocationPoint;
+
+						if (roomLocation != null)
+						{
+							// Create a new UV point from the room's location
+							UV pointUV = new UV(roomLocation.Point.X, roomLocation.Point.Y);
+
+							// Create a new room tag at the room's location in the desired view
+							RoomTag newTag = doc.Create.NewRoomTag(new LinkElementId(room.Id), pointUV, desiredView.Id);
+						}
+					}
+				}
+
+				// Commit the transaction
+				trans.Commit();
+			}
 		}
 
 	}
 	
 }
 
-
-namespace EagleEyeLayouts
-{
-	public static class ViewExtensions
-	{
-		public static bool IsElementVisibleInView(this View view, Element el)
-		{
-			if (view == null)
-			{
-				throw new ArgumentNullException(nameof(view));
-			}
-
-			if (el == null)
-			{
-				throw new ArgumentNullException(nameof(el));
-			}
-
-			// Obtain the element's document
-			Document doc = el.Document;
-
-			ElementId elId = el.Id;
-
-			// Create a FilterRule that searches for an element matching the given Id
-			FilterRule idRule = ParameterFilterRuleFactory.CreateEqualsRule(new ElementId(BuiltInParameter.ID_PARAM), elId);
-			var idFilter = new ElementParameterFilter(idRule);
-
-			// Use an ElementCategoryFilter to speed up the search, as ElementParameterFilter is a slow filter
-			Category cat = el.Category;
-			var catFilter = new ElementCategoryFilter(cat.Id);
-
-			// Use the constructor of FilteredElementCollector that accepts a view id as a parameter to only search that view
-			// Also use the WhereElementIsNotElementType filter to eliminate element types
-			FilteredElementCollector collector =
-				new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType().WherePasses(catFilter).WherePasses(idFilter);
-
-			// If the collector contains any items, then we know that the element is visible in the given view
-			return collector.Any();
-		}
-	}
-}

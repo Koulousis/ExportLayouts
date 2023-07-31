@@ -56,6 +56,7 @@
     <Compile Include="AddinForm.Designer.cs">
       <DependentUpon>AddinForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="AppearExtensions.cs" />
     <Compile Include="Event.cs" />
     <Compile Include="Command.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -70,6 +71,7 @@
     <Compile Include="SelectViewPlan.Designer.cs">
       <DependentUpon>SelectViewPlan.cs</DependentUpon>
     </Compile>
+    <Compile Include="ViewExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
