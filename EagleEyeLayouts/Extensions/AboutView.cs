@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace EagleEyeLayouts
+namespace EagleEyeLayouts.Extensions
 {
-	public static class ViewExtensions
+	public static class AboutView
 	{
 		public static bool IsElementVisibleInView(this View view, Element el)
 		{
@@ -87,7 +87,8 @@ namespace EagleEyeLayouts
 				FitDirection = FitDirectionType.Horizontal,
 				HLRandWFViewsFileType = ImageFileType.PNG,
 				ShadowViewsFileType = ImageFileType.PNG,
-				PixelSize = 10000
+				PixelSize = 10000,
+				
 			};
 
 			// Add the ViewPlan to the set of views to export

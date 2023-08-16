@@ -56,7 +56,8 @@
     <Compile Include="AddinForm.Designer.cs">
       <DependentUpon>AddinForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AppearExtensions.cs" />
+    <Compile Include="Collectors\WithCondition.cs" />
+    <Compile Include="Extensions\AboutVisibility.cs" />
     <Compile Include="Event.cs" />
     <Compile Include="Command.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -71,7 +72,7 @@
     <Compile Include="SelectViewPlan.Designer.cs">
       <DependentUpon>SelectViewPlan.cs</DependentUpon>
     </Compile>
-    <Compile Include="ViewExtensions.cs" />
+    <Compile Include="Extensions\AboutView.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -94,8 +95,9 @@
   <ItemGroup>
     <None Include="Resources\petpanel.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>if exist "J:\Drawings REVIT FAMILIES\02 NEW\Aris\Addins\PetersimeV2\DLLs" copy "$(ProjectDir)$(OutputPath)$(TargetFileName)" "J:\Drawings REVIT FAMILIES\02 NEW\Aris\Addins\PetersimeV2\DLLs"</PostBuildEvent>
+    <PostBuildEvent>if exist "J:\Drawings REVIT FAMILIES\02 NEW\Aris\Addins\PetersimeV2\DLLs" copy "$(ProjectDir)$(OutputPath)$(TargetFileName)" "J:\Drawings REVIT FAMILIES\02 NEW\Aris\Addins\PetersimeV2\TestDLLs"</PostBuildEvent>
   </PropertyGroup>
 </Project>

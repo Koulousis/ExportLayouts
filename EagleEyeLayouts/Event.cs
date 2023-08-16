@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,8 @@ using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using EagleEyeLayouts.Extensions;
+using EagleEyeLayouts.Collectors;
 using View = Autodesk.Revit.DB.View;
 
 namespace EagleEyeLayouts
@@ -28,8 +31,8 @@ namespace EagleEyeLayouts
 			string viewPlanName = "5.5 - Eagle Eye";
 			string centralFilePath = GetEagleEyeDirectory(doc);
 			//string centralFilePath = @"J:\Drawings UITVOER\Pet UIT 30-39\Uit33\3375-CHAI AREE\Phase 3_ 220309Brev3-OC\-3- Drawings\3 - Eagle Eye layouts\";
-			string filePath1 = $@"{centralFilePath}WithIncubators";
-			string filePath2 = $@"{centralFilePath}WithoutIncubators";
+			string filePath1 = $@"{centralFilePath}Project number – Project name – EE-layout with incubators";
+			string filePath2 = $@"{centralFilePath}Project number – Project name – EE-layout without incubators";
 			List<ElementId> collectedFamilies = new List<ElementId>();
 
 			switch (AddinForm.EventFlag)
@@ -37,12 +40,12 @@ namespace EagleEyeLayouts
 				case EventRaised.Event1:
 					
 					//Get view plan
-					ViewPlan viewPlan = ViewExtensions.GetViewPlanByName(doc, viewPlanName);
+					ViewPlan viewPlan = AboutView.GetViewPlanByName(doc, viewPlanName);
 					if (viewPlan == null)
 					{
 						TaskDialog.Show("Eagle eye layouts", "The default view plan <5.5 - Eagle Eye> didn't found. Please select one view from the upcoming list", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 
-						List<ViewPlan> allViewPlans = ViewExtensions.GetAllViewPlans(doc);
+						List<ViewPlan> allViewPlans = AboutView.GetAllViewPlans(doc);
 						List<string> allViewPlanNames = new List<string>();
 						foreach (ViewPlan view in allViewPlans)
 						{
@@ -55,24 +58,24 @@ namespace EagleEyeLayouts
 						if (result == DialogResult.OK)
 						{
 							viewPlanName = SelectViewPlan.SelectedViewPlanName;
-							viewPlan = ViewExtensions.GetViewPlanByName(doc, viewPlanName);
+							viewPlan = AboutView.GetViewPlanByName(doc, viewPlanName);
 						}
 						else
 						{
 							TaskDialog.Show("Eagle eye layouts", "Process canceled.", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 							return;
 						}
-						   
+						
 					}
 					
 					//Tag all rooms
 					TagAllRoomsInSpecificView(doc, viewPlan.Name);
 
 					//Collect incubators
-					collectedFamilies = CollectFamilyInstances(doc, "XSTR");
+					collectedFamilies = WithCondition.CollectFamilyInstances(doc, "XSTR");
 
 					//Check their visibility
-					if (AppearExtensions.IsAnyElementHiddenInView(viewPlan, collectedFamilies))
+					if (AboutVisibility.IsAnyElementHiddenInView(viewPlan, collectedFamilies))
 					{
 						TaskDialog dialog = new TaskDialog("Eagle eye layouts")
 						{
@@ -86,17 +89,25 @@ namespace EagleEyeLayouts
 						TaskDialogResult result = dialog.Show();
 						if (result == TaskDialogResult.Yes)
 						{
-							AppearExtensions.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
+							AboutVisibility.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
 						}
 					}
 						
 					//Export with incubators
-					ViewExtensions.ExportViewPlanToImage(doc, viewPlan, filePath1);
+					AboutView.ExportViewPlanToImage(doc, viewPlan, filePath1);
 
 					//Export without incubators
-					AppearExtensions.HideElementsInPlan(doc, viewPlan, collectedFamilies);
-					ViewExtensions.ExportViewPlanToImage(doc, viewPlan, filePath2);
-					AppearExtensions.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
+					AboutVisibility.HideElementsInPlan(doc, viewPlan, collectedFamilies);
+					AboutView.ExportViewPlanToImage(doc, viewPlan, filePath2);
+					AboutVisibility.UnhideElementsInPlan(doc,viewPlan, collectedFamilies);
+
+					//Change files names
+					filePath1 = Directory.GetFiles(centralFilePath, "*.*").FirstOrDefault(file => Path.GetFileName(file).Contains("with incubators"));
+					filePath2 = Directory.GetFiles(centralFilePath, "*.*").FirstOrDefault(file => Path.GetFileName(file).Contains("without incubators"));
+					string newfilePath1 = $@"{centralFilePath}Project number – Project name – EE-layout with incubators.png";
+					string newfilePath2 = $@"{centralFilePath}Project number – Project name – EE-layout without incubators.png";
+					File.Move(filePath1, newfilePath1);
+					File.Move(filePath2, newfilePath2);
 
 					TaskDialog.Show("Eagle eye layouts", "Export ready.\nThe export folder location will pop up.", TaskDialogCommonButtons.Ok, TaskDialogResult.Ok);
 					Process.Start(centralFilePath);
@@ -111,29 +122,7 @@ namespace EagleEyeLayouts
 			}
 		}
 
-		public List<ElementId> CollectFamilyInstances(Document doc, string familyNameStart)
-		{
-			// Retrieve all FamilyInstance elements in the document
-			FilteredElementCollector collector = new FilteredElementCollector(doc);
-			ICollection<Element> familyInstances = collector.OfClass(typeof(FamilyInstance)).ToElements();
-
-			// Create a list to store the Ids of the matching elements
-			List<ElementId> ids = new List<ElementId>();
-
-			// Loop through all FamilyInstance elements
-			foreach (Element elem in familyInstances)
-			{
-				FamilyInstance fi = elem as FamilyInstance;
-				if (fi != null && fi.Symbol.Family.Name.StartsWith(familyNameStart))
-				{
-					// If the FamilyInstance's family name starts with the specified string, add it to the list
-					ids.Add(fi.Id);
-				}
-			}
-
-			return ids;
-		}
-
+		
 		public string GetEagleEyeDirectory(Document doc)
 		{
 			// Get the ModelPath object for the central model

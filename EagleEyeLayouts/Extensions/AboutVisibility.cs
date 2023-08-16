@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
-namespace EagleEyeLayouts
+namespace EagleEyeLayouts.Extensions
 {
-	public static class AppearExtensions
+	public static class AboutVisibility
 	{
 		public static bool IsAnyElementHiddenInView(View view, List<ElementId> elementIds)
 		{
